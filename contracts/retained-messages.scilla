@@ -1,0 +1,153 @@
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+import ListUtils
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+
+library RetainedMessages
+
+
+(* Library code block follows *)
+let true = True
+let false = False
+let empty_list = Nil {String}
+type ContractErrors = 
+    | NotPausedError
+    | PausedError
+    | NotOwnerError
+    | TopicDoesNotExist
+
+let throw_err =
+    fun (err : ContractErrors) => 
+        let error_code =
+            match err with
+                | NotPausedError => Int32 -1
+                | PausedError => Int32 -2
+                | NotOwnerError => Int32 -3
+                | TopicDoesNotExist => Int32 -4
+             end
+        in
+        { _exception: "Error"; code: error_code }
+
+let create_1el_list =
+    fun (e1 : String) => 
+        (* expression goes here *)
+        Cons{String} e1 empty_list
+    
+
+(***************************************************)
+(*             Contract definition                 *)
+(***************************************************)
+
+contract RetainedMessages
+
+(* Immutable fields declaration *)
+
+(initial_contract_owner: ByStr20)
+
+(* Mutable fields declaration *)
+field contract_owner : ByStr20 = initial_contract_owner
+field retained_messages : Map String (List String) = Emp String (List String)
+field paused: Bool = False
+
+(* Procedures *)
+
+procedure Throw(error: ContractErrors)
+    e = throw_err error;
+    throw e
+end
+
+procedure RequireOwner()
+    curr_owner <- contract_owner;
+    is_contract_owner = builtin eq curr_owner _sender;
+    match is_contract_owner with
+        | True =>
+        | False =>
+            error = NotOwnerError;
+            Throw error
+    end
+end
+
+procedure RequireNotPaused()
+    is_paused <- paused;
+    match is_paused with
+        | False =>
+        | True =>
+            error = PausedError;
+            Throw error
+    end      
+end
+
+procedure RequirePaused()
+  is_paused <- paused;
+  match is_paused with
+  | True =>
+  | False =>
+    error = NotPausedError;
+    Throw error
+  end
+end
+
+(* Transitions *)
+
+(* Pauses the contract as a circuit-breaker mechanism. *)
+
+transition Pause()
+    RequireNotPaused;
+    RequireOwner;
+    paused := true;
+
+    e = {
+        _eventname: "Pause";
+        paused: true
+    };
+    event e
+end
+
+(* Unpauses the contract. *)
+
+transition Unpause()
+    RequirePaused;
+    RequireOwner;
+    paused := false;
+
+    e = {
+        _eventname: "Unpause";
+        paused: false
+    };
+    event e
+end
+
+transition AppendMessage(topic: String, message: String)
+    RequireNotPaused;
+    RequireOwner;
+    does_topic_exist <- exists retained_messages[topic];
+    match does_topic_exist with
+        | True =>
+        list_append_string = @list_append String;
+        new_el = create_1el_list message;
+        curr_messages_for_topic <- retained_messages[topic];
+        match curr_messages_for_topic with
+            | Some curr_messages =>
+            (*statements for true*)
+            new_list = list_append_string curr_messages new_el;
+            retained_messages[topic] := new_list
+            | None =>
+         end  
+        | False =>
+        new_el = create_1el_list message;
+        retained_messages[topic] := new_el
+     end;
+     e = {
+        _eventname: "AppendMessage";
+        topic: topic;
+        message: message
+     };
+     event e
+    
+end
