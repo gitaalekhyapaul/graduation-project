@@ -1,4 +1,5 @@
 import { BN, bytes, Long, Zilliqa } from "@zilliqa-js/zilliqa";
+import { PublishPacket } from "aedes:packet";
 import { IPublishPacket } from "mqtt-packet";
 const zilliqa = new Zilliqa(
   process.env.NETWORK_URL ?? "https://dev-api.zilliqa.com"
@@ -57,4 +58,15 @@ export const setRetainedMessages = async (
   });
   const txnReceipt = callTxn?.getReceipt();
   console.log(`Transaction: ${JSON.stringify(txnReceipt)}`);
+};
+
+export const setDeadLetterQueue = async (
+  records: Record<string, string>
+) => {
+  console.log("setDeadLetterQueue called with the records:");
+  console.dir(records, { depth: null });
+};
+
+export const getDeadLetterQueue = async (clientId: string) => {
+  console.log("getDeadLetterQueue called with the clientId:", clientId);
 };
