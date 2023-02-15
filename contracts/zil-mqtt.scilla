@@ -9,7 +9,7 @@ import ListUtils
 (*               Associated library                *)
 (***************************************************)
 
-library RetainedMessages
+library ZilMQTT
 
 
 (* Library code block follows *)
@@ -21,6 +21,7 @@ type ContractErrors =
     | PausedError
     | NotOwnerError
     | TopicDoesNotExist
+    | ClientIdDoesNotExist
 
 let throw_err =
     fun (err : ContractErrors) => 
@@ -30,6 +31,7 @@ let throw_err =
                 | PausedError => Int32 -2
                 | NotOwnerError => Int32 -3
                 | TopicDoesNotExist => Int32 -4
+                | ClientIdDoesNotExist => Int32 -5
              end
         in
         { _exception: "Error"; code: error_code }
@@ -44,7 +46,7 @@ let create_1el_list =
 (*             Contract definition                 *)
 (***************************************************)
 
-contract RetainedMessages
+contract ZilMQTT
 
 (* Immutable fields declaration *)
 
@@ -53,6 +55,7 @@ contract RetainedMessages
 (* Mutable fields declaration *)
 field contract_owner : ByStr20 = initial_contract_owner
 field retained_messages : Map String (List String) = Emp String (List String)
+field dead_letter_queue : Map String (List String) = Emp String (List String)
 field paused: Bool = False
 
 (* Procedures *)
@@ -90,6 +93,17 @@ procedure RequirePaused()
   | False =>
     error = NotPausedError;
     Throw error
+  end
+end
+
+procedure ClientIdExists(clientid: String)
+  is_paused <- paused;
+  does_clientid_exist <- exists dead_letter_queue[clientid];
+  match does_clientid_exist with
+    | True =>
+    | False =>
+      error = ClientIdDoesNotExist;
+      Throw error
   end
 end
 
@@ -150,4 +164,45 @@ transition AppendMessage(topic: String, message: String)
      };
      event e
     
+end
+
+transition QueueDeadLetters(clientid: String, message: String)
+    RequireNotPaused;
+    RequireOwner;
+    does_clientid_exist <- exists dead_letter_queue[clientid];
+    match does_clientid_exist with
+        | True =>
+        list_append_string = @list_append String;
+        new_el = create_1el_list message;
+        curr_messages_for_clientid <- dead_letter_queue[clientid];
+        match curr_messages_for_clientid with
+            | Some curr_messages =>
+            (*statements for true*)
+            new_list = list_append_string curr_messages new_el;
+            dead_letter_queue[clientid] := new_list
+            | None =>
+         end  
+        | False =>
+        new_el = create_1el_list message;
+        dead_letter_queue[clientid] := new_el
+     end;
+     e = {
+        _eventname: "QueueDeadLetter";
+        clientid: clientid;
+        message: message
+     };
+     event e
+    
+end
+
+transition DequeueDeadLetters(clientid: String)
+    RequireNotPaused;
+    RequireOwner;    
+    ClientIdExists clientid;
+    dead_letter_queue[clientid] := empty_list;
+    e = {
+        _eventname: "DequeueDeadLetters";
+        clientid: clientid
+     };
+     event e
 end
