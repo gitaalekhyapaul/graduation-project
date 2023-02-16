@@ -2,7 +2,7 @@ import aedes from "aedes";
 import net from "net";
 import { config as dotenvConfig } from "dotenv";
 
-import { getRetainedMessages, setRetainedMessages } from "./services/zilliqa";
+import { getDeadLetterQueue, getRetainedMessages, setRetainedMessages } from "./services/zilliqa";
 import PersistenceService from "./services/persistence";
 import DeadLetterExchangeService from "./services/dlx";
 PersistenceService.initPersistence();
@@ -21,6 +21,16 @@ server.listen(PORT, () => {
 aedesServer.on("client", (client) => {
   console.log("New client connected!");
   console.log("Connected client ID:", client.id);
+  Promise.all([getDeadLetterQueue(client.id)])
+    .then((msg) => {
+      const messages = msg[0];
+      for (const payload of messages) {
+        client.publish(payload, (e) => {
+          if (e) console.error(e);
+        });
+      }
+    })
+    .catch((e) => console.error(e));
 });
 
 aedesServer.authorizeSubscribe = (client, subscription, callback) => {

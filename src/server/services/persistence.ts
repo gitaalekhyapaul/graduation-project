@@ -23,7 +23,6 @@ class PersistenceService {
         data.push(chunk);
       });
       readableStream?.on("end", () => {
-        console.log("data:", data);
         resolve(data);
       });
       readableStream?.on("error", (err) => {

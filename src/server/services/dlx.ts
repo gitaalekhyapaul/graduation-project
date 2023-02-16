@@ -17,7 +17,7 @@ class DeadLetterExchangeService {
     ).toString("base64");
     return encodedPacket;
   }
-  private decodePacket(packet: string): PublishPacket {
+  public static decodePacket(packet: string): PublishPacket {
     let parsedPacket = JSON.parse(
       Buffer.from(packet, "base64").toString("utf-8")
     );
@@ -47,7 +47,7 @@ class DeadLetterExchangeService {
     console.log(
       "New object for DeadLetterExchangeService created. Initial status:"
     );
-    console.dir(this.status, { depth: null });
+    console.log(JSON.stringify(this.status));
     aedesServer.on("ack", this.ackHandler);
   }
 
@@ -58,7 +58,11 @@ class DeadLetterExchangeService {
           aedesServer.removeListener("ack", this.ackHandler);
           const status: Record<string, string> = {};
           for (const clientId in this.status) {
-            status[clientId] = this.encodePacket(this.status[clientId]);
+            if (this.status[clientId].retain) {
+              continue;
+            } else {
+              status[clientId] = this.encodePacket(this.status[clientId]);
+            }
           }
           await setDeadLetterQueue(status);
           resolve(true);
