@@ -1,6 +1,8 @@
 import { PublishPacket, PubrelPacket } from "aedes:packet";
 import Aedes from "aedes";
 import { Client } from "aedes:client";
+import debug from "debug";
+
 import { setDeadLetterQueue } from "./zilliqa";
 import aedesServer from "..";
 
@@ -31,27 +33,34 @@ class DeadLetterExchangeService {
     packet: PublishPacket | PubrelPacket,
     client: Client
   ) => {
+    const debugFactory = debug(
+      "zilmqtt:services:DeadLetterExchangeService:ackHandler"
+    );
     if (packet?.cmd === "publish" && packet?.topic === this.topic) {
       delete this.status[client.id];
-      console.log(
+      debugFactory(
         `Client ID '${client.id}' has ACKed the PUBLISH on topic '${this.topic}'`
       );
     }
   };
   constructor(clientIds: Array<string>, packet: PublishPacket) {
+    const debugFactory = debug("zilmqtt:services:DeadLetterExchangeService");
     this.status = {};
     this.topic = packet.topic;
     for (const clientId of clientIds) {
       this.status[clientId] = packet;
     }
-    console.log(
+    debugFactory(
       "New object for DeadLetterExchangeService created. Initial status:"
     );
-    console.log(JSON.stringify(this.status));
+    debugFactory(JSON.stringify(this.status));
     aedesServer.on("ack", this.ackHandler);
   }
 
   public startTimer = async () => {
+    const debugFactory = debug(
+      "zilmqtt:services:DeadLetterExchangeService:startTimer"
+    );
     return new Promise((resolve, reject) => {
       setTimeout(async () => {
         try {

@@ -1,5 +1,7 @@
 import { BN, bytes, Long, Zilliqa } from "@zilliqa-js/zilliqa";
 import { PublishPacket } from "aedes:packet";
+import debug from "debug";
+
 import DeadLetterExchangeService from "./dlx";
 const zilliqa = new Zilliqa(
   process.env.NETWORK_URL ?? "https://dev-api.zilliqa.com"
@@ -8,6 +10,7 @@ const zilliqa = new Zilliqa(
 export const getRetainedMessages = async (
   topic: string
 ): Promise<Array<PublishPacket>> => {
+  const debugFactory = debug("zilmqtt:getRetainedMessages");
   const contract = zilliqa.contracts.at(process.env.CONTRACT_ADDRESS ?? "");
   const messages = await contract.getSubState("retained_messages", [
     `${topic}`,
@@ -26,6 +29,7 @@ export const setRetainedMessages = async (
   topic: string,
   packet: PublishPacket
 ) => {
+  const debugFactory = debug("zilmqtt:setRetainedMessages");
   if (!packet.retain) return;
   const updatedPacket = Buffer.from(
     JSON.stringify({
@@ -37,7 +41,7 @@ export const setRetainedMessages = async (
   const walletAddress = zilliqa.wallet.addByPrivateKey(
     process.env.WALLET_PRIVATE_KEY ?? ""
   );
-  console.log(`Wallet Address: ${walletAddress}`);
+  debugFactory(`Wallet Address: ${walletAddress}`);
   const args = [
     {
       vname: "topic",
@@ -58,7 +62,7 @@ export const setRetainedMessages = async (
     version: bytes.pack(333, 1),
   });
   const txnReceipt = callTxn?.getReceipt();
-  console.log(
+  debugFactory(
     "Time elapsed since transaction:",
     (
       (process.hrtime.bigint() - timeStart) /
@@ -66,11 +70,12 @@ export const setRetainedMessages = async (
     ).toString(),
     "seconds."
   );
-  console.log(`Transaction: ${JSON.stringify(txnReceipt)}`);
+  debugFactory(`Transaction: ${JSON.stringify(txnReceipt)}`);
 };
 
 export const setDeadLetterQueue = async (records: Record<string, string>) => {
-  console.log(
+  const debugFactory = debug("zilmqtt:setDeadLetterQueue");
+  debugFactory(
     "setDeadLetterQueue called with the records:",
     JSON.stringify(records)
   );
@@ -78,7 +83,7 @@ export const setDeadLetterQueue = async (records: Record<string, string>) => {
   const walletAddress = zilliqa.wallet.addByPrivateKey(
     process.env.WALLET_PRIVATE_KEY ?? ""
   );
-  console.log(`Wallet Address: ${walletAddress}`);
+  debugFactory(`Wallet Address: ${walletAddress}`);
   for (const clientId in records) {
     if (Object.prototype.hasOwnProperty.call(records, clientId)) {
       const deadLetter = records[clientId];
@@ -102,12 +107,15 @@ export const setDeadLetterQueue = async (records: Record<string, string>) => {
         version: bytes.pack(333, 1),
       });
       const txnReceipt = callTxn?.getReceipt();
-      console.log(
+      debugFactory(
         "Time elapsed since transaction:",
-        (process.hrtime.bigint() - timeStart) / BigInt(1000 * 1000 * 1000),
+        (
+          (process.hrtime.bigint() - timeStart) /
+          BigInt(1000 * 1000 * 1000)
+        ).toString(),
         "seconds."
       );
-      console.log(`Transaction: ${JSON.stringify(txnReceipt)}`);
+      debugFactory(`Transaction: ${JSON.stringify(txnReceipt)}`);
     }
   }
 };
@@ -115,7 +123,8 @@ export const setDeadLetterQueue = async (records: Record<string, string>) => {
 export const getDeadLetterQueue = async (
   clientId: string
 ): Promise<Array<PublishPacket>> => {
-  console.log("getDeadLetterQueue called with the clientId:", clientId);
+  const debugFactory = debug("zilmqtt:getDeadLetterQueue");
+  debugFactory("getDeadLetterQueue called with the clientId:", clientId);
   const contract = zilliqa.contracts.at(process.env.CONTRACT_ADDRESS ?? "");
   const messages = await contract.getSubState("dead_letter_queue", [
     `${clientId}`,
@@ -131,7 +140,7 @@ export const getDeadLetterQueue = async (
   const walletAddress = zilliqa.wallet.addByPrivateKey(
     process.env.WALLET_PRIVATE_KEY ?? ""
   );
-  console.log(`Wallet Address: ${walletAddress}`);
+  debugFactory(`Wallet Address: ${walletAddress}`);
   const args = [
     {
       vname: "clientid",
@@ -147,11 +156,14 @@ export const getDeadLetterQueue = async (
     version: bytes.pack(333, 1),
   });
   const txnReceipt = callTxn?.getReceipt();
-  console.log(
+  debugFactory(
     "Time elapsed since transaction:",
-    (process.hrtime.bigint() - timeStart) / BigInt(1000 * 1000 * 1000),
+    (
+      (process.hrtime.bigint() - timeStart) /
+      BigInt(1000 * 1000 * 1000)
+    ).toString(),
     "seconds."
   );
-  console.log(`Transaction: ${JSON.stringify(txnReceipt)}`);
+  debugFactory(`Transaction: ${JSON.stringify(txnReceipt)}`);
   return parsedMessages;
 };
