@@ -22,6 +22,7 @@ export const getRetainedMessages = async (
     temp.payload = Buffer.from(temp.payload, "base64");
     return temp;
   });
+  debugFactory("Retrieved messages:", JSON.stringify(parsedMessages));
   return parsedMessages;
 };
 
@@ -165,5 +166,6 @@ export const getDeadLetterQueue = async (
     "seconds."
   );
   debugFactory(`Transaction: ${JSON.stringify(txnReceipt)}`);
+  debugFactory("Retrieved messages:", JSON.stringify(parsedMessages));
   return parsedMessages;
 };
