@@ -56,7 +56,7 @@ aedesServer.authorizeSubscribe = (client, subscription, callback) => {
 };
 
 aedesServer.authorizePublish = async (client, packet, callback) => {
-  const debugFactory = debug("zilmqtt:aedes:handler:authorizeSubscribe");
+  const debugFactory = debug("zilmqtt:aedes:handler:authorizePublish");
   const clientIds = await PersistenceService.getClientsByTopic(packet.topic);
   let wait = new DeadLetterExchangeService(clientIds, packet);
   Promise.all([
