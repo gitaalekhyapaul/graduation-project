@@ -22,6 +22,7 @@ type ContractErrors =
     | NotOwnerError
     | TopicDoesNotExist
     | ClientIdDoesNotExist
+    | DuplicateHostname
 
 let throw_err =
     fun (err : ContractErrors) => 
@@ -32,6 +33,7 @@ let throw_err =
                 | NotOwnerError => Int32 -3
                 | TopicDoesNotExist => Int32 -4
                 | ClientIdDoesNotExist => Int32 -5
+                | DuplicateHostname => Int32 -6
              end
         in
         { _exception: "Error"; code: error_code }
@@ -40,6 +42,13 @@ let create_1el_list =
     fun (e1 : String) => 
         (* expression goes here *)
         Cons{String} e1 empty_list
+let create_2el_list =
+    fun (e1 : String) => 
+    fun (e2: String) =>
+        (* expression goes here *)
+        let nil = empty_list in
+        let first = Cons{String} e1 nil in
+        Cons{String} e2 first
     
 
 (***************************************************)
@@ -56,6 +65,8 @@ contract ZilMQTT
 field contract_owner : ByStr20 = initial_contract_owner
 field retained_messages : Map String (List String) = Emp String (List String)
 field dead_letter_queue : Map String (List String) = Emp String (List String)
+field broker_dns: Map String (List String) = Emp String (List String)
+field topic_assignment: Map String (List String) = Emp String (List String)
 field paused: Bool = False
 
 (* Procedures *)
@@ -205,4 +216,41 @@ transition DequeueDeadLetters(clientid: String)
         clientid: clientid
      };
      event e
+end
+
+transition RegisterDNS(hostname: String, ip: String, port: String)
+    RequireNotPaused;
+    RequireOwner;
+    does_hostname_exist <- exists broker_dns[hostname];
+    match does_hostname_exist with
+        | True =>
+        error = DuplicateHostname;
+        Throw error
+        | False =>
+        new_el = create_2el_list port ip;
+        broker_dns[hostname] := new_el
+     end;
+     e = {
+        _eventname: "RegisterDNS";
+        hostname: hostname;
+        ip: ip;
+        port: port
+     };
+     event e
+    
+end
+
+
+transition UpdateTopicAssignments(topic: String, brokers: List String)
+    RequireNotPaused;
+    RequireOwner;
+    topic_assignment[topic] := brokers;
+    
+     e = {
+        _eventname: "UpdateTopicAssignments";
+        topic: topic;
+        brokers: brokers
+     };
+     event e
+    
 end
