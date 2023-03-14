@@ -724,7 +724,7 @@ mqtt-packet@^7.0.0:
     debug "^4.1.1"
     process-nextick-args "^2.0.1"
 
-mqtt-packet@^8.1.1:
+mqtt-packet@^8.1.1, mqtt-packet@^8.1.2:
   version "8.1.2"
   resolved "https://registry.yarnpkg.com/mqtt-packet/-/mqtt-packet-8.1.2.tgz#6946cc691ad7b3fd30b094140e561ac97bb66e08"
   integrity sha512-vL1YTct+TAy0PqX3Jv8jM3JMzObH6vC/lyA0I5LtD4xvydOdIdmofrSp12PE3jajiIOUaW3XxmQekbyToXpsSw==
@@ -732,6 +732,11 @@ mqtt-packet@^8.1.1:
     bl "^5.0.0"
     debug "^4.1.1"
     process-nextick-args "^2.0.1"
+
+mqtt-parser@^0.0.3:
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/mqtt-parser/-/mqtt-parser-0.0.3.tgz#b76b3c1c7a7c068c741027676bd70e8f5686554c"
+  integrity sha512-6ksQrFHTxaiqnWiXpIe46hjlVS5Uy0ScM0fI4Fxy28+BtWBantHpl0cqxlp0jmMXanegK9vFsItSCTClUU/OKQ==
 
 ms@2.0.0:
   version "2.0.0"
