@@ -43,14 +43,25 @@ const server = createServer(
       console.log(JSON.stringify(_packet));
       if (_packet.packetType === 8) {
         const packet = { ..._packet } as Packet.Subscribe;
-        lb.clientSubscriptions.push(data);
+        lb.clientSubscriptionPackets.push(data);
+        lb.clientSubscriptionTopics.push(packet.topics[0].name);
         lb.myBrokers[lb.getSelectedBrokerIndex()].connection.write(data);
+        BrokerLB.addBrokerTopicMapping(
+          packet.topics[0].name,
+          lb.getSelectedBroker()
+        );
       } else if (_packet.packetType === 12) {
         const packet = { ..._packet } as Packet.PingReq;
         for (const broker of lb.myBrokers) {
           broker.connection.write(data);
         }
-      } else if (_packet.packetType === 1) {
+      }
+      // else if (_packet.packetType === 3) {
+      //   const packet = { ..._packet } as Packet.Publish;
+      //   BrokerLB.publishPackets(packet.topicName, data);
+      // }
+      else if (_packet.packetType === 1) {
+        const packet = { ..._packet } as Packet.Connect;
         for (const broker of lb.myBrokers) {
           console.log(broker.id);
           broker.connection.on("data", (data) => {
@@ -65,11 +76,21 @@ const server = createServer(
               const packet = { ..._packet } as Packet.PingResp;
               socket.write(data);
             } else if (broker.id === lb.getSelectedBroker()) {
+              console.log(
+                "Broker ID'",
+                broker.id,
+                "' forwards packet to client."
+              );
               socket.write(data);
             }
           });
           broker.connection.on("close", () => {
-            console.log("close", socketId);
+            console.log(
+              "Broker ID'",
+              broker.id,
+              "' closed connection to clientID",
+              socketId
+            );
             if (
               lb.getSelectedBrokerIndex() ===
               lb.getCurrentBrokerIndex(broker.id)
@@ -78,7 +99,6 @@ const server = createServer(
             }
           });
         }
-        const packet = { ..._packet } as Packet.Connect;
         for (const broker of lb.myBrokers) {
           broker.connection.write(data);
         }

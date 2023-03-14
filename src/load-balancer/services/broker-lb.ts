@@ -11,9 +11,15 @@ type BrokerConnectionParams = {
   id: string;
 };
 
+type BrokerTopicMap = {
+  [topic: string]: Array<string>;
+};
+
 class BrokerLB {
   public static brokers: BrokerConnectionParams[] = [];
-  public clientSubscriptions: Buffer[];
+  public static brokerTopicMap: BrokerTopicMap = {};
+  public clientSubscriptionPackets: Buffer[];
+  public clientSubscriptionTopics: string[];
   public selectedBroker: string;
   public myBrokers: Brokers[];
   constructor() {
@@ -27,7 +33,8 @@ class BrokerLB {
         }),
       };
     });
-    this.clientSubscriptions = [];
+    this.clientSubscriptionPackets = [];
+    this.clientSubscriptionTopics = [];
     this.selectedBroker = this.myBrokers[0].id;
   }
   public getSelectedBroker = () => {
@@ -40,17 +47,26 @@ class BrokerLB {
     return this.myBrokers.findIndex((b) => b.id === id);
   };
   public shiftBrokerLoad = () => {
+    const currentBrokerId = this.getSelectedBroker();
+    console.log("currentBrokerId:", currentBrokerId);
     const currentBrokerIndex = this.getSelectedBrokerIndex();
-    console.log("currentBrokerIndex", currentBrokerIndex);
+    console.log("currentBrokerIndex:", currentBrokerIndex);
     const newBrokerIndex = (currentBrokerIndex + 1) % this.myBrokers.length;
-    console.log("newBrokerIndex", newBrokerIndex);
-    this.selectedBroker = this.myBrokers[newBrokerIndex].id;
-    for (const subscription of this.clientSubscriptions) {
+    console.log("newBrokerIndex:", newBrokerIndex);
+    const newBrokerId = this.myBrokers[newBrokerIndex].id;
+    console.log("newBrokerId:", newBrokerId);
+    this.selectedBroker = newBrokerId;
+    for (const subscription of this.clientSubscriptionPackets) {
       this.myBrokers[newBrokerIndex].connection.write(subscription);
     }
     this.myBrokers.splice(currentBrokerIndex, 1);
+    this.updateBrokerTopicMapping(
+      this.clientSubscriptionTopics,
+      currentBrokerId,
+      newBrokerId
+    );
   };
-  public static initBrokers() {
+  public static initBrokers = () => {
     BrokerLB.brokers = [
       {
         port: 1883,
@@ -63,7 +79,51 @@ class BrokerLB {
         id: "Broker1_1884",
       },
     ];
-  }
+  };
+  public static addBrokerTopicMapping = (topic: string, brokerId: string) => {
+    if (BrokerLB.brokerTopicMap[topic]) {
+      BrokerLB.brokerTopicMap[topic].push(brokerId);
+    } else {
+      BrokerLB.brokerTopicMap[topic] = [brokerId];
+    }
+    console.log("Updated BrokerLB.brokerTopics:");
+    console.log(JSON.stringify(BrokerLB.brokerTopicMap));
+  };
+  private updateBrokerTopicMapping = (
+    topics: Array<string>,
+    oldBrokerId: string,
+    newBrokerId: string
+  ) => {
+    for (const topic of topics) {
+      BrokerLB.brokerTopicMap[topic] = BrokerLB.brokerTopicMap[topic].filter(
+        (broker) => broker !== oldBrokerId
+      );
+      BrokerLB.brokerTopicMap[topic].push(newBrokerId);
+    }
+    console.log("Updated BrokerLB.brokerTopics:");
+    console.log(JSON.stringify(BrokerLB.brokerTopicMap));
+  };
+  public static publishPackets = (topic: string, packet: Buffer) => {
+    const brokerIds = BrokerLB.brokerTopicMap[topic];
+    for (const brokerId of brokerIds) {
+      console.log(
+        "Sending PUBLISH on topic'",
+        topic,
+        "' to BrokerID '",
+        brokerId,
+        "'"
+      );
+      const connDetails = BrokerLB.brokers.find((b) => b.id === brokerId)!;
+      const tempConn = createConnection({
+        host: connDetails.host,
+        port: connDetails.port,
+      });
+      tempConn.write(packet);
+      tempConn.on("data", (data) => {
+        console.log("Broker received PUBLISH");
+      });
+    }
+  };
 }
 
 export default BrokerLB;
