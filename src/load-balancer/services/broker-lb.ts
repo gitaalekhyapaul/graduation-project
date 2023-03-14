@@ -5,15 +5,28 @@ type Brokers = {
   connection: Socket;
   id: string;
 };
+type BrokerConnectionParams = {
+  host: string;
+  port: number;
+  id: string;
+};
 
 class BrokerLB {
-  public static brokers: Brokers[] = [];
+  public static brokers: BrokerConnectionParams[] = [];
   public clientSubscriptions: Buffer[];
   public selectedBroker: string;
   public myBrokers: Brokers[];
   constructor() {
     //! Change to some round-robin algorithm
-    this.myBrokers = BrokerLB.brokers.map((x) => x);
+    this.myBrokers = BrokerLB.brokers.map((connectionParam) => {
+      return {
+        id: connectionParam.id,
+        connection: createConnection({
+          host: connectionParam.host,
+          port: connectionParam.port,
+        }),
+      };
+    });
     this.clientSubscriptions = [];
     this.selectedBroker = this.myBrokers[0].id;
   }
@@ -33,24 +46,20 @@ class BrokerLB {
     console.log("newBrokerIndex", newBrokerIndex);
     this.selectedBroker = this.myBrokers[newBrokerIndex].id;
     for (const subscription of this.clientSubscriptions) {
-        this.myBrokers[newBrokerIndex].connection.write(subscription);
+      this.myBrokers[newBrokerIndex].connection.write(subscription);
     }
     this.myBrokers.splice(currentBrokerIndex, 1);
   };
   public static initBrokers() {
     BrokerLB.brokers = [
       {
-        connection: createConnection({
-          port: 1883,
-          host: "127.0.0.1",
-        }),
+        port: 1883,
+        host: "127.0.0.1",
         id: "Broker0_1883",
       },
       {
-        connection: createConnection({
-          port: 1884,
-          host: "127.0.0.1",
-        }),
+        port: 1884,
+        host: "127.0.0.1",
         id: "Broker1_1884",
       },
     ];

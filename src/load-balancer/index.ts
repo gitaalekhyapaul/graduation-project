@@ -1,6 +1,9 @@
-import { createServer, createConnection } from "net";
+import { createServer, createConnection, Socket } from "net";
 import { Packet, parse } from "mqtt-parser";
 import BrokerLB from "./services/broker-lb";
+import { v4 } from "uuid";
+
+const clients: { [x: string]: { socket: Socket; lb: BrokerLB } } = {};
 
 const PacketType: { [x: number]: string } = {
   1: "CONNECT",
@@ -24,33 +27,15 @@ const server = createServer(
     allowHalfOpen: true,
   },
   (socket) => {
-    const lb = new BrokerLB();
-    for (const broker of lb.myBrokers) {
-      console.log(broker.id);
-      broker.connection.on("data", (data) => {
-        const _packet = parse(data)[0];
-        console.log("Packet received from broker ID '", broker.id, "':");
-        console.log("Packet type: ", PacketType[_packet.packetType]);
-        console.log(JSON.stringify(_packet));
-        if (_packet.packetType === 2) {
-          const packet = { ..._packet } as Packet.ConnAck;
-          socket.write(data);
-        } else if (_packet.packetType === 13) {
-          const packet = { ..._packet } as Packet.PingResp;
-          socket.write(data);
-        } else if (broker.id === lb.getSelectedBroker()) {
-          socket.write(data);
-        }
-      });
-      broker.connection.on("close", () => {
-        if (
-          lb.getSelectedBrokerIndex() === lb.getCurrentBrokerIndex(broker.id)
-        ) {
-          lb.shiftBrokerLoad();
-        }
-      });
-    }
+    const socketId = v4();
+    (socket as any).id = socketId;
+    clients[socketId] = {
+      socket: socket,
+      lb: new BrokerLB(),
+    };
+    console.log("New client:", (socket as any).id);
     socket.on("data", (data) => {
+      const lb = clients[socketId].lb;
       const _packet = parse(data)[0];
       console.log("Packet received from client:");
       console.log(socket.remoteAddress, socket.remotePort);
@@ -66,6 +51,33 @@ const server = createServer(
           broker.connection.write(data);
         }
       } else if (_packet.packetType === 1) {
+        for (const broker of lb.myBrokers) {
+          console.log(broker.id);
+          broker.connection.on("data", (data) => {
+            const _packet = parse(data)[0];
+            console.log("Packet received from broker ID '", broker.id, "':");
+            console.log("Packet type: ", PacketType[_packet.packetType]);
+            console.log(JSON.stringify(_packet));
+            if (_packet.packetType === 2) {
+              const packet = { ..._packet } as Packet.ConnAck;
+              socket.write(data);
+            } else if (_packet.packetType === 13) {
+              const packet = { ..._packet } as Packet.PingResp;
+              socket.write(data);
+            } else if (broker.id === lb.getSelectedBroker()) {
+              socket.write(data);
+            }
+          });
+          broker.connection.on("close", () => {
+            console.log("close", socketId);
+            if (
+              lb.getSelectedBrokerIndex() ===
+              lb.getCurrentBrokerIndex(broker.id)
+            ) {
+              lb.shiftBrokerLoad();
+            }
+          });
+        }
         const packet = { ..._packet } as Packet.Connect;
         for (const broker of lb.myBrokers) {
           broker.connection.write(data);
