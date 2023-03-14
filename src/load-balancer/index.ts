@@ -2,6 +2,9 @@ import { createServer, createConnection, Socket } from "net";
 import { Packet, parse } from "mqtt-parser";
 import BrokerLB from "./services/broker-lb";
 import { v4 } from "uuid";
+import { config as dotenvConfig } from "dotenv";
+
+dotenvConfig();
 
 const clients: { [x: string]: { socket: Socket; lb: BrokerLB } } = {};
 
@@ -22,7 +25,7 @@ const PacketType: { [x: number]: string } = {
   14: "DISCONNECT",
 };
 
-const server = createServer(
+const loadBalancerServer = createServer(
   {
     allowHalfOpen: true,
   },
@@ -104,9 +107,9 @@ const server = createServer(
   }
 );
 
-server.listen(1885, () => {
+loadBalancerServer.listen(process.env.PORT ?? 1883, () => {
   BrokerLB.initBrokers();
-  console.log("TCP LB running on 1885");
+  console.log("TCP LB running on", process.env.PORT ?? 1883);
 });
 
 process.on("SIGHUP", () => {
