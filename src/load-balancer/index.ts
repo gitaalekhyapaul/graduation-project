@@ -37,7 +37,7 @@ const loadBalancerServer = createServer(
       lb: new BrokerLB(),
     };
     console.log("New client:", (socket as any).id);
-    socket.on("data", (data) => {
+    socket.on("data", async (data) => {
       const lb = clients[socketId].lb;
       const _packet = parse(data)[0];
       console.log("Packet received from client:");
