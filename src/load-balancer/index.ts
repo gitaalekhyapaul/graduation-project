@@ -55,12 +55,7 @@ const server = createServer(
         for (const broker of lb.myBrokers) {
           broker.connection.write(data);
         }
-      }
-      // else if (_packet.packetType === 3) {
-      //   const packet = { ..._packet } as Packet.Publish;
-      //   BrokerLB.publishPackets(packet.topicName, data);
-      // }
-      else if (_packet.packetType === 1) {
+      } else if (_packet.packetType === 1) {
         const packet = { ..._packet } as Packet.Connect;
         for (const broker of lb.myBrokers) {
           console.log(broker.id);
@@ -107,34 +102,6 @@ const server = createServer(
       }
     });
   }
-
-  // {
-  // const brokerConn1 = createConnection({
-  //   port: 1883,
-  //   host: "127.0.0.1",
-  // });
-  // const brokerConn2 = createConnection({
-  //   port: 1884,
-  //   host: "127.0.0.1",
-  // });
-  // // socket.pipe(brokerConn1).pipe(socket);
-  // socket.on("data", (data) => {
-  //   console.log("Packet received from client:");
-  //   console.log(socket.remoteAddress, socket.remotePort);
-  //   parser.parse(data);
-  //   brokerConn1.write(data);
-  //   console.log(data.toString("hex").match(/../g)?.join(" "));
-  // });
-  // brokerConn1.on("data", (data) => {
-  //   console.log("Packet received from broker:");
-  //   parser.parse(data);
-  //   socket.write(data);
-  //   console.log(data.toString("hex").match(/../g)?.join(" "));
-  // });
-  // brokerConn1.on("close", () => {
-  //   socket.pipe(brokerConn2).pipe(socket);
-  // });
-  // }
 );
 
 server.listen(1885, () => {
