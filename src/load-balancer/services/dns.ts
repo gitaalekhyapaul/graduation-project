@@ -30,6 +30,11 @@ class DNSService {
     return DNSService.brokerConnectionParams;
   };
   public static getBrokerTopicMap = async () => {
+    const debug = debugFactory(
+      "zilmqtt:load-balancer:DNSService:getBrokerTopicMap"
+    );
+    debug("Current value of DNSService.brokerTopicMap:");
+    debug(JSON.stringify(DNSService.brokerTopicMap));
     return DNSService.brokerTopicMap;
   };
   public static setBrokerTopicMap = async (

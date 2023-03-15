@@ -124,6 +124,19 @@ const loadBalancerServer = createServer(
         lb.myBrokers[lb.getSelectedBrokerIndex()].connection.write(data);
       }
     });
+    socket.on("close", (hadError) => {
+      const debug = debugFactory(
+        `zilmqtt:load-balancer:client:${socketId}:close-event`
+      );
+      debug(`ClientID '${socketId}'closed, with error: ${hadError}`);
+    });
+    socket.on("error", (err) => {
+      const debug = debugFactory(
+        `zilmqtt:load-balancer:client:${socketId}:error-event`
+      );
+      debug(`ClientID '${socketId}' error:`);
+      debug(err);
+    });
   }
 );
 new DNSService();
