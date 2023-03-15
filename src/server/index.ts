@@ -1,6 +1,7 @@
 import aedes from "aedes";
 import net from "net";
 import { config as dotenvConfig } from "dotenv";
+import { connect } from "mqtt";
 import debug from "debug";
 
 import {
@@ -20,8 +21,39 @@ dotenvConfig();
 const PORT = process.env.PORT ?? 1883;
 server.listen(PORT, () => {
   const debugFactory = debug("zilmqtt:aedes:internal");
-  console.log("MQTT Server Listening on Port", PORT);
+  debugFactory("MQTT Server Listening on Port", PORT);
   debugFactory("Aedes server ID:", aedesServer.id);
+  if (process.env.LB === "true") {
+    debugFactory(
+      "Load balancing enabled on server. Attempting to connect to LB..."
+    );
+    const loadBalancerConn = connect(
+      `mqtt://${process.env.LB_HOST}:${process.env.LB_PORT}`,
+      {
+        reconnectPeriod: 0,
+      }
+    );
+    loadBalancerConn.on("connect", () => {
+      debugFactory(
+        "LB Connected at",
+        `mqtt://${process.env.LB_HOST}:${process.env.LB_PORT}`
+      );
+      loadBalancerConn.subscribe(
+        `$ZILMQTT/${aedesServer.id}/${process.env.BROKER_REMOTE_IP}/${process.env.BROKER_REMOTE_PORT}`
+      );
+      debugFactory(
+        "Subscribed to",
+        `$ZILMQTT/${aedesServer.id}/${process.env.BROKER_REMOTE_IP}/${process.env.BROKER_REMOTE_PORT}`,
+        "on LB"
+      );
+    });
+    loadBalancerConn.on("close", () => {
+      debugFactory(
+        "Received connection close request from LB. Closing MQTT connection..."
+      );
+      loadBalancerConn.end();
+    });
+  }
 });
 
 aedesServer.on("client", (client) => {
@@ -57,14 +89,18 @@ aedesServer.authorizeSubscribe = (client, subscription, callback) => {
 
 aedesServer.authorizePublish = async (client, packet, callback) => {
   const debugFactory = debug("zilmqtt:aedes:handler:authorizePublish");
-  const clientIds = await PersistenceService.getClientsByTopic(packet.topic);
-  let wait = new DeadLetterExchangeService(clientIds, packet);
-  Promise.all([
-    setRetainedMessages(packet.topic, packet),
-    (async () => {
-      await wait.startTimer();
-    })(),
-  ]).catch((e) => debugFactory(e));
+  if (packet.qos > 0) {
+    const clientIds = await PersistenceService.getClientsByTopic(packet.topic);
+    let wait = new DeadLetterExchangeService(clientIds, packet);
+    Promise.all([
+      setRetainedMessages(packet.topic, packet),
+      (async () => {
+        await wait.startTimer();
+      })(),
+    ]).catch((e) => debugFactory(e));
+  } else {
+    debug("QoS 0 PUBLISH received, skipping DeadLetterExchangeService...");
+  }
   callback(null);
 };
 

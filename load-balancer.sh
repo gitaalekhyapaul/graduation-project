@@ -1,3 +1,3 @@
 #! /bin/bash
-export DEBUG="zilmqtt-lb:*"
+export DEBUG="zilmqtt:*"
 yarn dev::load-balancer

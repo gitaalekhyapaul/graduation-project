@@ -1,43 +1,70 @@
 import { createConnection, Socket } from "net";
-import { generate } from "mqtt-packet";
+import DNSService from "./dns";
+import { debug as debugFactory } from "debug";
 
 type Brokers = {
   connection: Socket;
   id: string;
 };
-type BrokerConnectionParams = {
+export type BrokerConnectionParams = {
   [id: string]: {
     host: string;
     port: number;
   };
 };
 
-type BrokerTopicMap = {
+export type BrokerTopicMap = {
   [topic: string]: Array<string>;
 };
 
 class BrokerLB {
-  public static brokers: BrokerConnectionParams = {};
-  public static brokerTopicMap: BrokerTopicMap = {};
   public clientSubscriptionPackets: Buffer[];
   public clientSubscriptionTopics: string[];
   public selectedBroker: string;
   public myBrokers: Brokers[];
-  constructor() {
-    this.myBrokers = Object.keys(BrokerLB.brokers).map((brokerId, index) => {
-      return {
-        id: brokerId,
-        connection: createConnection({
-          host: BrokerLB.brokers[brokerId].host,
-          port: BrokerLB.brokers[brokerId].port,
-        }),
-      };
-    });
+  private socketId: string;
+  constructor(socketId: string) {
+    this.socketId = socketId;
+    const debug = debugFactory(
+      `zilmqtt:load-balancer:BrokerLB:${this.socketId}:constructor`
+    );
     this.clientSubscriptionPackets = [];
     this.clientSubscriptionTopics = [];
-    this.selectedBroker = this.myBrokers[0].id;
+    this.selectedBroker = "";
+    this.myBrokers = [];
+    debug("BrokerLB Service Initialized");
   }
+  public initClientBrokerConnections = async () => {
+    const debug = debugFactory(
+      `zilmqtt:load-balancer:BrokerLB:${this.socketId}:initClientBrokerConnections`
+    );
+    const dns = await DNSService.getDNS();
+    this.myBrokers = Object.keys(dns)
+      .map((brokerId, index) => {
+        try {
+          return {
+            id: brokerId,
+            connection: createConnection({
+              host: dns[brokerId].host,
+              port: dns[brokerId].port,
+            }),
+          };
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter((e) => e !== null) as Brokers[];
+    debug("this.myBrokers updated to:");
+    debug(JSON.stringify(this.myBrokers.map((broker) => broker.id)));
+    this.selectedBroker = this.myBrokers[0].id;
+    debug("this.selectedBroker updated to:");
+    debug(JSON.stringify(this.selectedBroker));
+  };
   public getSelectedBroker = () => {
+    const debug = debugFactory(
+      `zilmqtt:load-balancer:BrokerLB:${this.socketId}:getSelectedBroker`
+    );
+    debug("this.selectedBroker:", this.selectedBroker);
     return this.selectedBroker;
   };
   public getSelectedBrokerIndex = () => {
@@ -46,60 +73,64 @@ class BrokerLB {
   public getCurrentBrokerIndex = (id: string) => {
     return this.myBrokers.findIndex((b) => b.id === id);
   };
-  public shiftBrokerLoad = () => {
+  public shiftBrokerLoad = async () => {
+    const debug = debugFactory(
+      `zilmqtt:load-balancer:BrokerLB:${this.socketId}:shiftBrokerLoad`
+    );
     const currentBrokerId = this.getSelectedBroker();
-    console.log("currentBrokerId:", currentBrokerId);
+    debug("currentBrokerId:", currentBrokerId);
     const currentBrokerIndex = this.getSelectedBrokerIndex();
-    console.log("currentBrokerIndex:", currentBrokerIndex);
+    debug("currentBrokerIndex:", currentBrokerIndex);
     const newBrokerIndex = (currentBrokerIndex + 1) % this.myBrokers.length;
-    console.log("newBrokerIndex:", newBrokerIndex);
+    debug("newBrokerIndex:", newBrokerIndex);
     const newBrokerId = this.myBrokers[newBrokerIndex].id;
-    console.log("newBrokerId:", newBrokerId);
+    debug("newBrokerId:", newBrokerId);
     this.selectedBroker = newBrokerId;
     for (const subscription of this.clientSubscriptionPackets) {
       this.myBrokers[newBrokerIndex].connection.write(subscription);
     }
     this.myBrokers.splice(currentBrokerIndex, 1);
-    this.updateBrokerTopicMapping(
+    await this.updateBrokerTopicMapping(
       this.clientSubscriptionTopics,
       currentBrokerId,
       newBrokerId
     );
   };
-  public static initBrokers = () => {
-    BrokerLB.brokers = {
-      Broker0_1883: {
-        port: 1885,
-        host: "127.0.0.1",
-      },
-      Broker1_1884: {
-        port: 1886,
-        host: "127.0.0.1",
-      },
-    };
-  };
-  public static addBrokerTopicMapping = (topic: string, brokerId: string) => {
-    if (BrokerLB.brokerTopicMap[topic]) {
-      BrokerLB.brokerTopicMap[topic].push(brokerId);
+  public addBrokerTopicMapping = async (topic: string, brokerId: string) => {
+    const debug = debugFactory(
+      `zilmqtt:load-balancer:BrokerLB:${this.socketId}:addBrokerTopicMapping`
+    );
+    const brokerTopicMap = await DNSService.getBrokerTopicMap();
+    if (brokerTopicMap[topic]) {
+      brokerTopicMap[topic].push(brokerId);
     } else {
-      BrokerLB.brokerTopicMap[topic] = [brokerId];
+      brokerTopicMap[topic] = [brokerId];
     }
-    console.log("Updated BrokerLB.brokerTopics:");
-    console.log(JSON.stringify(BrokerLB.brokerTopicMap));
+    await DNSService.setBrokerTopicMap(brokerTopicMap, topic);
+    debug("Updated DNSService.brokerTopicMap:");
+    debug(JSON.stringify(brokerTopicMap));
   };
-  private updateBrokerTopicMapping = (
+  private updateBrokerTopicMapping = async (
     topics: Array<string>,
     oldBrokerId: string,
     newBrokerId: string
   ) => {
+    const debug = debugFactory(
+      `zilmqtt:load-balancer:BrokerLB:${this.socketId}:updateBrokerTopicMapping`
+    );
+    const brokerTopicMap = await DNSService.getBrokerTopicMap();
     for (const topic of topics) {
-      BrokerLB.brokerTopicMap[topic] = BrokerLB.brokerTopicMap[topic].filter(
+      debug(
+        `Changing the topic '${topic}' load from broker '${oldBrokerId}' to broker '${newBrokerId}'`
+      );
+      brokerTopicMap[topic] = brokerTopicMap[topic].filter(
         (broker) => broker !== oldBrokerId
       );
-      BrokerLB.brokerTopicMap[topic].push(newBrokerId);
+      brokerTopicMap[topic].push(newBrokerId);
+      await DNSService.setBrokerTopicMap(brokerTopicMap, topic);
     }
-    console.log("Updated BrokerLB.brokerTopics:");
-    console.log(JSON.stringify(BrokerLB.brokerTopicMap));
+    debug("Updated DNSService.brokerTopicMap:");
+    debug(JSON.stringify(brokerTopicMap));
   };
 }
 

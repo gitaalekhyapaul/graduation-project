@@ -4,14 +4,16 @@ import debug from "debug";
 
 import DeadLetterExchangeService from "./dlx";
 const zilliqa = new Zilliqa(
-  process.env.NETWORK_URL ?? "https://dev-api.zilliqa.com"
+  process.env.ZILLIQA_NETWORK_URL ?? "https://dev-api.zilliqa.com"
 );
 
 export const getRetainedMessages = async (
   topic: string
 ): Promise<Array<PublishPacket>> => {
   const debugFactory = debug("zilmqtt:getRetainedMessages");
-  const contract = zilliqa.contracts.at(process.env.CONTRACT_ADDRESS ?? "");
+  const contract = zilliqa.contracts.at(
+    process.env.ZILLIQA_CONTRACT_ADDRESS ?? ""
+  );
   const messages = await contract.getSubState("retained_messages", [
     `${topic}`,
   ]);
@@ -38,9 +40,11 @@ export const setRetainedMessages = async (
       payload: Buffer.from((packet as any).payload).toString("base64"),
     })
   ).toString("base64");
-  const contract = zilliqa.contracts.at(process.env.CONTRACT_ADDRESS ?? "");
+  const contract = zilliqa.contracts.at(
+    process.env.ZILLIQA_CONTRACT_ADDRESS ?? ""
+  );
   const walletAddress = zilliqa.wallet.addByPrivateKey(
-    process.env.WALLET_PRIVATE_KEY ?? ""
+    process.env.ZILLIQA_WALLET_PRIVATE_KEY ?? ""
   );
   debugFactory(`Wallet Address: ${walletAddress}`);
   const args = [
@@ -80,9 +84,11 @@ export const setDeadLetterQueue = async (records: Record<string, string>) => {
     "setDeadLetterQueue called with the records:",
     JSON.stringify(records)
   );
-  const contract = zilliqa.contracts.at(process.env.CONTRACT_ADDRESS ?? "");
+  const contract = zilliqa.contracts.at(
+    process.env.ZILLIQA_CONTRACT_ADDRESS ?? ""
+  );
   const walletAddress = zilliqa.wallet.addByPrivateKey(
-    process.env.WALLET_PRIVATE_KEY ?? ""
+    process.env.ZILLIQA_WALLET_PRIVATE_KEY ?? ""
   );
   debugFactory(`Wallet Address: ${walletAddress}`);
   for (const clientId in records) {
@@ -126,7 +132,9 @@ export const getDeadLetterQueue = async (
 ): Promise<Array<PublishPacket>> => {
   const debugFactory = debug("zilmqtt:getDeadLetterQueue");
   debugFactory("getDeadLetterQueue called with the clientId:", clientId);
-  const contract = zilliqa.contracts.at(process.env.CONTRACT_ADDRESS ?? "");
+  const contract = zilliqa.contracts.at(
+    process.env.ZILLIQA_CONTRACT_ADDRESS ?? ""
+  );
   const messages = await contract.getSubState("dead_letter_queue", [
     `${clientId}`,
   ]);
@@ -139,7 +147,7 @@ export const getDeadLetterQueue = async (
     return parsedMessages;
   }
   const walletAddress = zilliqa.wallet.addByPrivateKey(
-    process.env.WALLET_PRIVATE_KEY ?? ""
+    process.env.ZILLIQA_WALLET_PRIVATE_KEY ?? ""
   );
   debugFactory(`Wallet Address: ${walletAddress}`);
   const args = [

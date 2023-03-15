@@ -16,6 +16,7 @@ library ZilMQTT
 let true = True
 let false = False
 let empty_list = Nil {String}
+let empty_map = Emp String (List String)
 type ContractErrors = 
     | NotPausedError
     | PausedError
@@ -250,6 +251,19 @@ transition UpdateTopicAssignments(topic: String, brokers: List String)
         _eventname: "UpdateTopicAssignments";
         topic: topic;
         brokers: brokers
+     };
+     event e
+    
+end
+
+transition ClearDNSCache()
+    RequireNotPaused;
+    RequireOwner;
+    topic_assignment := empty_map;
+    broker_dns := empty_map;
+    
+     e = {
+        _eventname: "ClearDNSCache"
      };
      event e
     
