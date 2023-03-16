@@ -6,7 +6,7 @@ class PersistenceService {
   private static persistence: AedesPersistence | null = null;
   private constructor() {}
   public static initPersistence() {
-    const debugFactory = debug("zilmqtt:services:PersistenceService");
+    const debugFactory = debug("zilmqtt:broker:services:PersistenceService");
     this.persistence = aedesMemoryPersistence();
     debugFactory("Persistence initiated!");
   }
@@ -18,7 +18,7 @@ class PersistenceService {
   }
   public static async getClientsByTopic(topic: string): Promise<Array<string>> {
     const debugFactory = debug(
-      `zilmqtt:services:PersistenceService:getClientsByTopic:topic:${topic}`
+      `zilmqtt:broker:services:PersistenceService:getClientsByTopic:topic:${topic}`
     );
     return new Promise((resolve, reject) => {
       let data: Array<string> = [];

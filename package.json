@@ -6,7 +6,7 @@
   "author": "Gita Alekhya Paul <54375111+gitaalekhyapaul@users.noreply.github.com>",
   "license": "MIT",
   "scripts": {
-    "start::server": "node ./dist/server/index.js",
+    "start::server": "node ./dist/broker/index.js",
     "dev::server": "tsc-watch --onSuccess \"yarn start::server\"",
     "start::load-balancer": "node ./dist/load-balancer/index.js",
     "dev::load-balancer": "tsc-watch --onSuccess \"yarn start::load-balancer\""

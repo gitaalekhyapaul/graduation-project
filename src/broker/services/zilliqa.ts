@@ -19,7 +19,9 @@ type ZilliqaConfig = {
 class ZilliqaService {
   private static config: ZilliqaConfig;
   constructor() {
-    const debugFactory = debug("zilmqtt:services:ZilliqaService:constructor");
+    const debugFactory = debug(
+      "zilmqtt:broker:services:ZilliqaService:constructor"
+    );
     //@ts-ignore
     ZilliqaService.config = {};
     ZilliqaService.config.zilliqa = new Zilliqa(
@@ -52,7 +54,7 @@ class ZilliqaService {
     topic: string
   ): Promise<Array<PublishPacket>> => {
     const debugFactory = debug(
-      `zilmqtt:services:ZilliqaService:getRetainedMessages:topic:${topic}`
+      `zilmqtt:broker:services:ZilliqaService:getRetainedMessages:topic:${topic}`
     );
     const contract = ZilliqaService.config.contract;
     const messages = await contract.getSubState("retained_messages", [
@@ -77,7 +79,7 @@ class ZilliqaService {
     packet: PublishPacket
   ) => {
     const debugFactory = debug(
-      `zilmqtt:services:ZilliqaService:setRetainedMessages:topic:${topic}`
+      `zilmqtt:broker:services:ZilliqaService:setRetainedMessages:topic:${topic}`
     );
     if (!packet.retain) return;
     const updatedPacket = DeadLetterExchangeService.encodePacket(packet);
@@ -119,7 +121,7 @@ class ZilliqaService {
     records: Record<string, string>
   ) => {
     const debugFactory = debug(
-      "zilmqtt:services:ZilliqaService:setDeadLetterQueue"
+      "zilmqtt:broker:services:ZilliqaService:setDeadLetterQueue"
     );
     debugFactory(
       "ZilliqaService.setDeadLetterQueue called with the records:",
@@ -169,7 +171,7 @@ class ZilliqaService {
     clientId: string
   ): Promise<Array<PublishPacket>> => {
     const debugFactory = debug(
-      `zilmqtt:services:ZilliqaService:getDeadLetterQueue:client:${clientId}`
+      `zilmqtt:broker:services:ZilliqaService:getDeadLetterQueue:client:${clientId}`
     );
     debugFactory(
       "ZilliqaService.getDeadLetterQueue called with the clientId:",

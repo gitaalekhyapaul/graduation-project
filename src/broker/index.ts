@@ -17,7 +17,7 @@ dotenvConfig();
 const PORT = process.env.PORT ?? 1883;
 server.listen(PORT, () => {
   new ZilliqaService();
-  const debugFactory = debug("zilmqtt:aedes:internal");
+  const debugFactory = debug("zilmqtt:broker:aedes:internal");
   debugFactory("MQTT Server Listening on Port", PORT);
   debugFactory("Aedes server ID:", aedesServer.id);
   if (process.env.LB === "true") {
@@ -58,7 +58,9 @@ server.listen(PORT, () => {
 });
 
 aedesServer.on("client", (client) => {
-  const debugFactory = debug(`zilmqtt:aedes:client:${client.id}:connect-event`);
+  const debugFactory = debug(
+    `zilmqtt:broker:aedes:client:${client.id}:connect-event`
+  );
   debugFactory("New client connected!");
   debugFactory("Connected client ID:", client.id);
   debugFactory("Getting the dead letters for client...");
@@ -82,7 +84,7 @@ aedesServer.on("client", (client) => {
 
 aedesServer.authorizeSubscribe = (client, subscription, callback) => {
   const debugFactory = debug(
-    `zilmqtt:aedes:client:${client.id}:handler:authorizeSubscribe`
+    `zilmqtt:broker:aedes:client:${client.id}:handler:authorizeSubscribe`
   );
   debugFactory(`Client subscribed to topic '${subscription.topic}'`);
   debugFactory(
@@ -109,7 +111,7 @@ aedesServer.authorizeSubscribe = (client, subscription, callback) => {
 
 aedesServer.authorizePublish = async (client, packet, callback) => {
   const debugFactory = debug(
-    `zilmqtt:aedes:client:${client?.id}:handler:authorizePublish`
+    `zilmqtt:broker:broker:broker:aedes:client:${client?.id}:handler:authorizePublish`
   );
   debugFactory(`Client wants to publish to topic '${packet.topic}'`);
   if (packet.qos > 0 && packet.retain === false) {

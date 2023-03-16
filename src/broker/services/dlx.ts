@@ -34,7 +34,7 @@ class DeadLetterExchangeService {
     client: Client
   ) => {
     const debugFactory = debug(
-      "zilmqtt:services:DeadLetterExchangeService:ackHandler"
+      "zilmqtt:broker:services:DeadLetterExchangeService:ackHandler"
     );
     if (packet?.cmd === "publish" && packet?.topic === this.topic) {
       delete this.status[client.id];
@@ -44,7 +44,9 @@ class DeadLetterExchangeService {
     }
   };
   constructor(clientIds: Array<string>, packet: PublishPacket) {
-    const debugFactory = debug("zilmqtt:services:DeadLetterExchangeService");
+    const debugFactory = debug(
+      "zilmqtt:broker:services:DeadLetterExchangeService"
+    );
     this.status = {};
     this.topic = packet.topic;
     for (const clientId of clientIds) {
@@ -59,7 +61,7 @@ class DeadLetterExchangeService {
 
   public startTimer = async () => {
     const debugFactory = debug(
-      "zilmqtt:services:DeadLetterExchangeService:startTimer"
+      "zilmqtt:broker:services:DeadLetterExchangeService:startTimer"
     );
     return new Promise((resolve, reject) => {
       setTimeout(async () => {
