@@ -4,11 +4,7 @@ import { config as dotenvConfig } from "dotenv";
 import { connect } from "mqtt";
 import debug from "debug";
 
-import {
-  getDeadLetterQueue,
-  getRetainedMessages,
-  setRetainedMessages,
-} from "./services/zilliqa";
+import ZilliqaService from "./services/zilliqa";
 import PersistenceService from "./services/persistence";
 import DeadLetterExchangeService from "./services/dlx";
 PersistenceService.initPersistence();
@@ -20,6 +16,7 @@ const server = net.createServer(aedesServer.handle);
 dotenvConfig();
 const PORT = process.env.PORT ?? 1883;
 server.listen(PORT, () => {
+  new ZilliqaService();
   const debugFactory = debug("zilmqtt:aedes:internal");
   debugFactory("MQTT Server Listening on Port", PORT);
   debugFactory("Aedes server ID:", aedesServer.id);
@@ -53,19 +50,30 @@ server.listen(PORT, () => {
       );
       loadBalancerConn.end();
     });
+  } else {
+    debugFactory(
+      "Environment variable 'LB' set to 'false'. Skipping Load Balancer Init..."
+    );
   }
 });
 
 aedesServer.on("client", (client) => {
-  const debugFactory = debug("zilmqtt:aedes:event:client");
+  const debugFactory = debug(`zilmqtt:aedes:client:${client.id}:connect-event`);
   debugFactory("New client connected!");
   debugFactory("Connected client ID:", client.id);
-  Promise.all([getDeadLetterQueue(client.id)])
+  debugFactory("Getting the dead letters for client...");
+  Promise.all([ZilliqaService.getDeadLetterQueue(client.id)])
     .then((msg) => {
       const messages = msg[0];
+      debugFactory("Dead letters retrieved:");
+      debugFactory(JSON.stringify(messages));
       for (const payload of messages) {
         client.publish(payload, (e) => {
           if (e) debugFactory(e);
+          else
+            debugFactory(
+              `Dead letter MQTT packet ID ${payload.messageId} published to client.`
+            );
         });
       }
     })
@@ -73,13 +81,25 @@ aedesServer.on("client", (client) => {
 });
 
 aedesServer.authorizeSubscribe = (client, subscription, callback) => {
-  const debugFactory = debug("zilmqtt:aedes:handler:authorizeSubscribe");
-  Promise.all([getRetainedMessages(subscription.topic)])
+  const debugFactory = debug(
+    `zilmqtt:aedes:client:${client.id}:handler:authorizeSubscribe`
+  );
+  debugFactory(`Client subscribed to topic '${subscription.topic}'`);
+  debugFactory(
+    `Fetching retained messages for topic '${subscription.topic}'...`
+  );
+  Promise.all([ZilliqaService.getRetainedMessages(subscription.topic)])
     .then((msg) => {
       const messages = msg[0];
+      debugFactory("Retained messages retrieved:");
+      debugFactory(JSON.stringify(messages));
       for (const payload of messages) {
         client.publish(payload, (e) => {
           if (e) debugFactory(e);
+          else
+            debugFactory(
+              `Retained message MQTT packet ID ${payload.messageId} published to client.`
+            );
         });
       }
     })
@@ -88,9 +108,14 @@ aedesServer.authorizeSubscribe = (client, subscription, callback) => {
 };
 
 aedesServer.authorizePublish = async (client, packet, callback) => {
-  const debugFactory = debug("zilmqtt:aedes:handler:authorizePublish");
+  const debugFactory = debug(
+    `zilmqtt:aedes:client:${client?.id}:handler:authorizePublish`
+  );
+  debugFactory(`Client wants to publish to topic '${packet.topic}'`);
   if (packet.qos > 0 && packet.retain === false) {
+    debugFactory("Initializing DeadLetterExchangeService for the client IDs:");
     const clientIds = await PersistenceService.getClientsByTopic(packet.topic);
+    debugFactory(JSON.stringify(clientIds));
     let wait = new DeadLetterExchangeService(clientIds, packet);
     Promise.all([
       (async () => {
@@ -99,9 +124,9 @@ aedesServer.authorizePublish = async (client, packet, callback) => {
     ]).catch((e) => debugFactory(e));
   } else {
     debug("QoS 0 PUBLISH received, skipping DeadLetterExchangeService...");
-    Promise.all([setRetainedMessages(packet.topic, packet)]).catch((e) =>
-      debugFactory(e)
-    );
+    Promise.all([
+      ZilliqaService.setRetainedMessages(packet.topic, packet),
+    ]).catch((e) => debugFactory(e));
   }
   callback(null);
 };

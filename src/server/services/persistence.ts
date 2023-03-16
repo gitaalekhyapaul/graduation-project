@@ -18,7 +18,7 @@ class PersistenceService {
   }
   public static async getClientsByTopic(topic: string): Promise<Array<string>> {
     const debugFactory = debug(
-      "zilmqtt:services:PersistenceService:getClientsByTopic"
+      `zilmqtt:services:PersistenceService:getClientsByTopic:topic:${topic}`
     );
     return new Promise((resolve, reject) => {
       let data: Array<string> = [];

@@ -3,14 +3,14 @@ import Aedes from "aedes";
 import { Client } from "aedes:client";
 import debug from "debug";
 
-import { setDeadLetterQueue } from "./zilliqa";
+import ZilliqaService from "./zilliqa";
 import aedesServer from "..";
 
 class DeadLetterExchangeService {
   private status: Record<string, PublishPacket>;
   private topic: string;
   private timeout: number = 10000;
-  private encodePacket(packet: PublishPacket): string {
+  public static encodePacket(packet: PublishPacket): string {
     const encodedPacket = Buffer.from(
       JSON.stringify({
         ...packet,
@@ -70,10 +70,12 @@ class DeadLetterExchangeService {
             if (this.status[clientId].retain) {
               continue;
             } else {
-              status[clientId] = this.encodePacket(this.status[clientId]);
+              status[clientId] = DeadLetterExchangeService.encodePacket(
+                this.status[clientId]
+              );
             }
           }
-          await setDeadLetterQueue(status);
+          await ZilliqaService.setDeadLetterQueue(status);
           resolve(true);
         } catch (err) {
           reject(err);
