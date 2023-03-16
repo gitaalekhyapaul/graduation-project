@@ -89,17 +89,19 @@ aedesServer.authorizeSubscribe = (client, subscription, callback) => {
 
 aedesServer.authorizePublish = async (client, packet, callback) => {
   const debugFactory = debug("zilmqtt:aedes:handler:authorizePublish");
-  if (packet.qos > 0) {
+  if (packet.qos > 0 && packet.retain === false) {
     const clientIds = await PersistenceService.getClientsByTopic(packet.topic);
     let wait = new DeadLetterExchangeService(clientIds, packet);
     Promise.all([
-      setRetainedMessages(packet.topic, packet),
       (async () => {
         await wait.startTimer();
       })(),
     ]).catch((e) => debugFactory(e));
   } else {
     debug("QoS 0 PUBLISH received, skipping DeadLetterExchangeService...");
+    Promise.all([setRetainedMessages(packet.topic, packet)]).catch((e) =>
+      debugFactory(e)
+    );
   }
   callback(null);
 };
