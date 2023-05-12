@@ -3,6 +3,7 @@ Bachelor of Technology - Graduation Project
 <br>
 Batch Number: <b>NWC138</b>
 <br>
+Authors: <b>(1) Gita Alekhya Paul - RA1911030010014 (2) Yashvardhan Jagnani - RA1911030010035</b>
 </p>
 
 # **Abstract**
@@ -18,8 +19,6 @@ Overall, this research aims to improve the performance and reliability of the MQ
 <br>
 
 **Keywords:** Blockchain, Blockchain DNS, Fault Tolerance, MQTT, ZNS
-
-<br>
 
 # **Architecture**
 
@@ -74,8 +73,6 @@ User flow for the implementation of Topic Reassignment on Broker Failure. The fl
 1. Multiple Brokers connecting to the load balancer and their registration to the Blockchain DNS.
 2. On disconnection of one Broker, the topics are reassigned to another Broker.
 
-<br>
-
 # **Packet Flows**
 
 ## Getting Dead Letter Queues for a Client on connection
@@ -105,16 +102,12 @@ User flow for the implementation of Topic Reassignment on Broker Failure. The fl
 <img alt="Preview Images" src="./readme-assets/packet 4.png" />
 </div>
 
-<br>
-
 # **Prerequisites**
 
 1. A NodeJS environment
 2. Globally (or locally) installed NPM package `yarn`
 3. Scilla IDE - Neo Savant
 4. MQTTX - for testing
-
-<br>
 
 # **Setup**
 
